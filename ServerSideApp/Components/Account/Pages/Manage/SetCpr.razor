@@ -1,0 +1,74 @@
+﻿@page "/Account/Manage/CPR"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using ServerSideApp.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IdentityUserAccessor UserAccessor
+@inject ApplicationDbContext _dbContext;
+
+
+<PageTitle>CPR</PageTitle>
+
+<div class="row">
+    <h2>Indtast CPR-nummer</h2>
+    <div class="form-floating mb-3" style="width:200px">
+        <input type="text" @bind="@userCPR" placeholder="xxxxxx-xxxx" style="width:200px" />
+        <hr />
+        <button type="submit" onclick="onsubmit" class="w-100 btn btn-lg btn-primary" >Submit</button>
+    </div>
+</div>
+
+
+
+@code {
+    private ApplicationUser user = default!;
+    private string? userCPR;
+    private string? message;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+
+
+    protected override async void OnInitialized()
+    {
+        user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+        userCPR = GetCpr(user);
+
+        base.OnInitialized();
+    }
+
+
+
+    private string GetCpr(ApplicationUser user)
+    {
+        // need method to get cpr from user in DB
+        userCPR = "0101010101";
+        // userCPR = _dbContext.cprs.toList();
+
+
+        return userCPR;
+    }
+
+
+    private void OnSubmit(ApplicationUser user)
+    {
+        string? oldUserCPR = GetCpr(user);
+
+        // need method to set cpr to user in DB
+        if (userCPR is null || userCPR == oldUserCPR)
+        {
+            message = "Your CPR is unchanged.";
+            return;
+        }
+
+        var userId = UserManager.GetUserIdAsync(user);
+
+        return;
+    }
+}

@@ -1,0 +1,162 @@
+﻿@page "/Account/ConfirmEmail"
+
+@using System.Text
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using ServerSideApp.Components.Account.Pages.Manage
+@using ServerSideApp.Data
+@using System.ComponentModel.DataAnnotations
+@using System.Globalization
+@using System.Text.Encodings.Web
+@using SkiaSharp;
+@using SkiaSharp.QrCode;
+
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IdentityRedirectManager RedirectManager
+@inject IdentityUserAccessor UserAccessor
+@inject UrlEncoder UrlEncoder
+@inject ILogger<EnableAuthenticator> Logger
+
+
+
+
+<PageTitle>Confirm email</PageTitle>
+
+<h1>Confirm email</h1>
+<StatusMessage Message="@statusMessage" />
+
+<div> Download og anvend Google Authenticator (eller anden authenticator) for at oprette dig </div>
+
+<img src="@_imageSource" style="width:300px;height:300px" />
+
+@code {
+    private string? statusMessage;
+
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? UserId { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? Code { get; set; }
+
+    private string? _imageSource;
+
+    private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (UserId is null || Code is null)
+        {
+            RedirectManager.RedirectTo("");
+        }
+
+        var user = await UserManager.FindByIdAsync(UserId);
+        if (user is null)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            statusMessage = $"Error loading user with ID {UserId}";
+        }
+        else
+        {
+            var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
+            var result = await UserManager.ConfirmEmailAsync(user, code);
+            statusMessage = result.Succeeded ? "Thank you for confirming your email." : "Error confirming your email.";
+
+            await LoadSharedKeyAndQrCodeUriAsync(user);
+        }
+    }
+
+
+
+
+
+    // fra Components -> Account -> Pages -> Magage -> EnableAuthenticator.razor
+
+    private async ValueTask LoadSharedKeyAndQrCodeUriAsync(ApplicationUser user)
+    {
+        // Load the authenticator key & QR code URI to display on the form
+        var unformattedKey = await UserManager.GetAuthenticatorKeyAsync(user);
+        if (string.IsNullOrEmpty(unformattedKey))
+        {
+            await UserManager.ResetAuthenticatorKeyAsync(user);
+            unformattedKey = await UserManager.GetAuthenticatorKeyAsync(user);
+        }
+
+        string? sharedKey = FormatKey(unformattedKey!);
+
+        var email = await UserManager.GetEmailAsync(user);
+        string? authenticatorUri = GenerateQrCodeUri(email!, unformattedKey!);
+
+        CreateQRImage(authenticatorUri);
+    }
+
+    private string FormatKey(string unformattedKey)
+    {
+        var result = new StringBuilder();
+        int currentPosition = 0;
+        while (currentPosition + 4 < unformattedKey.Length)
+        {
+            result.Append(unformattedKey.AsSpan(currentPosition, 4)).Append(' ');
+            currentPosition += 4;
+        }
+        if (currentPosition < unformattedKey.Length)
+        {
+            result.Append(unformattedKey.AsSpan(currentPosition));
+        }
+
+        return result.ToString().ToLowerInvariant();
+    }
+
+    private string GenerateQrCodeUri(string email, string unformattedKey)
+    {
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            AuthenticatorUriFormat,
+            UrlEncoder.Encode("Microsoft.AspNetCore.Identity.UI"),
+            UrlEncoder.Encode(email),
+            unformattedKey);
+    }
+
+
+
+    // fra SkiaSharp
+
+    private void CreateQRImage(string? authenticationUri)
+    {
+        using var generator = new QRCodeGenerator();
+
+        // Generate QrCode
+        var qr = generator.CreateQrCode(authenticationUri, ECCLevel.H);
+
+
+        // Render to canvas
+        var info = new SKImageInfo(512, 512);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Render(qr, 500, 500, SKColors.White, SKColors.Black);
+
+
+        // Output to Stream -> File
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        using var stream = data.AsStream();
+
+
+
+        MemoryStream ms = new MemoryStream();
+        byte[] buffer = new byte [4096];
+        int bytesRead;
+        
+        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+            ms.Write(buffer, 0, bytesRead);
+        
+        ms.Seek(0, SeekOrigin.Begin);
+
+        string base64 = Convert.ToBase64String(ms.ToArray());
+        _imageSource = string.Format("data:image/png;base64,{0}", base64);
+    }
+}
