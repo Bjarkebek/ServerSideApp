@@ -30,7 +30,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Connectionstring til ToDo database
 var toDoConnectionString = builder.Configuration.GetConnectionString("ToDoConnection") ?? throw new InvalidOperationException("Connection string 'ToDoConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContext<ServerSideApp.Models.ToDoDbContext>(options =>
     options.UseSqlServer(toDoConnectionString));
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();

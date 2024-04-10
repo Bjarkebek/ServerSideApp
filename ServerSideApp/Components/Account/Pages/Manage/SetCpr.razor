@@ -6,69 +6,117 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
 @using ServerSideApp.Data
+@using Models
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityUserAccessor UserAccessor
-@inject ApplicationDbContext _dbContext;
+@inject Models.ToDoDbContext _toDoContext
+
 
 
 <PageTitle>CPR</PageTitle>
-
-<div class="row">
-    <h2>Indtast CPR-nummer</h2>
-    <div class="form-floating mb-3" style="width:200px">
-        <input type="text" @bind="@userCPR" placeholder="xxxxxx-xxxx" style="width:200px" />
-        <hr />
-        <button type="submit" onclick="onsubmit" class="w-100 btn btn-lg btn-primary" >Submit</button>
+<EditForm Model="Input" FormName="set-cpr" OnValidSubmit="OnSubmit" method="post">
+    <div class="row">
+        <h2>Indtast CPR-nummer</h2>
+        <div class="form-floating mb-3" style="width:200px">
+            <InputText type="text" placeholder="xxxxxx-xxxx" style="width:200px" 
+            @bind-Value="Input.userCpr"
+            @onchange="@((ChangeEventArgs __e) => Input.userCpr = __e?.Value?.ToString())" />
+            
+            <hr />
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Submit</button>
+        </div>
     </div>
-</div>
+</EditForm>
+
 
 
 
 @code {
     private ApplicationUser user = default!;
-    private string? userCPR;
-    private string? message;
+    private string? userCpr;
+    private string? _currentUser;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
 
 
-    protected override async void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        // var userId = UserManager.GetUserIdAsync(user);
+
+
         user = await UserAccessor.GetRequiredUserAsync(HttpContext);
-        userCPR = GetCpr(user);
+        _currentUser = user.ToString();
+
+        // CprNr er null - derfor crasher - skal testes om null før den kører (if null, userCpr = "")
+        // string? tempCpr = _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).CprNr;
+
+        if (_toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser) == null)
+        {
+            Input.userCpr = "";
+        }
+        else
+        {
+            Input.userCpr = _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).CprNr;
+        }
 
         base.OnInitialized();
     }
 
 
 
-    private string GetCpr(ApplicationUser user)
+    private async Task OnSubmit()
     {
-        // need method to get cpr from user in DB
-        userCPR = "0101010101";
-        // userCPR = _dbContext.cprs.toList();
+        
 
+        // if input changed - try send
+        if (Input.userCpr != "")
+        {
 
-        return userCPR;
+            // if input is unchanged - don't sendt
+
+            // INPUT (Input.userCpr) ÆNDRER SIG IKKE NÅR MAN SKRIVER I INPUT:(
+            if (Input.userCpr == _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).CprNr)
+            {
+                return;
+            }
+
+            // opretter cpr objekt gennem model og tilføjer værdier ud fra input
+            var cpr = new Models.Cpr
+                {
+                    User = user.UserName,
+                    CprNr = Input.userCpr
+                };
+
+            // tilføjer cpr objekt til database gennem context og gemmer
+
+            // Hvis bruger allerede er oprettet med cpr - kør Cprs.Update
+            if (cpr.User == _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).User.ToString())
+            {
+                _toDoContext.Cprs.Update(cpr);
+                _toDoContext.SaveChanges();
+            }
+            // else
+            // {
+            //     _toDoContext.Cprs.Update(cpr);
+            //     _toDoContext.SaveChanges();
+            // }
+
+        }
+
     }
 
 
-    private void OnSubmit(ApplicationUser user)
+    private sealed class InputModel
     {
-        string? oldUserCPR = GetCpr(user);
-
-        // need method to set cpr to user in DB
-        if (userCPR is null || userCPR == oldUserCPR)
-        {
-            message = "Your CPR is unchanged.";
-            return;
-        }
-
-        var userId = UserManager.GetUserIdAsync(user);
-
-        return;
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Text)]
+        [Display(Name = "Cpr")]
+        public string? userCpr { get; set; }
     }
 }
