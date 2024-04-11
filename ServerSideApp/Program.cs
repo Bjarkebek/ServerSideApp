@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ServerSideApp.Components;
 using ServerSideApp.Components.Account;
 using ServerSideApp.Data;
+using ServerSideApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+builder.Services.AddSingleton<HashingService>(); // tilføjer hashing service
 
 builder.Services.AddAuthentication(options =>
     {
@@ -54,6 +56,13 @@ builder.Configuration.GetSection("Kestrel:Endpoints:Https:Certificate:Path").Val
 string kestrelCertPassword = builder.Configuration.GetValue<string>("KestrelCertPassword");
 builder.Configuration.GetSection("Kestrel:Endpoints:Https:Certificate:Password").Value = kestrelCertPassword;
 
+
+// tilføjer authorization service og policy
+builder.Services.AddAuthorization(options => {
+    options.AddPolicy("AuthenticatedUser", policy => {
+        policy.RequireAuthenticatedUser();
+    });
+});
 
 
 var app = builder.Build();

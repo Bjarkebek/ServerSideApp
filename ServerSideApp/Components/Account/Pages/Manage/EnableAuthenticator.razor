@@ -118,6 +118,10 @@ else
         }
     }
 
+
+
+    // generates QR-code -------------------------------------------------------------------
+
     private async ValueTask LoadSharedKeyAndQrCodeUriAsync(ApplicationUser user)
     {
         // Load the authenticator key & QR code URI to display on the form
@@ -160,6 +164,11 @@ else
             UrlEncoder.Encode(email),
             unformattedKey);
     }
+
+    // -------------------------------------------------------------------------------------
+
+
+
 
     private sealed class InputModel
     {

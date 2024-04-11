@@ -1,0 +1,87 @@
+﻿@page "/ToDo"
+
+@inject AuthenticationStateProvider _authenticationStateProvider;
+@inject Models.ToDoDbContext _toDoContext;
+
+@if (_isAuthenticated)
+{
+    <h3>ToDoList</h3>
+
+    <div class="form-floating mb-3" style="width:200px">
+        <input type="text" placeholder="to do...." style="width:200px" @bind="_toDoTask" />
+        <hr />
+        <button type="submit" @onclick="SubmitTask" class="w-100 btn btn-lg btn-primary">Add</button>
+    </div>
+
+    <div style="margin-top:px;">
+        @if (TodoList != null && TodoList.Count > 0)
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>My Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (TodoList != null && TodoList.Count > 0)
+                    {
+                        @foreach (var item in TodoList)
+                        {
+                            <tr>
+                                <td>@item.Task</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+
+
+
+}
+
+
+
+@code {
+    private bool _isAuthenticated;
+    private bool _cprAuthenticated;
+    private string? _currentUser;
+    private string? _toDoTask;
+    private List<Models.Todolist>? TodoList = new List<Models.Todolist>();
+    private Models.Cpr _userInDb;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+        _currentUser = authenticationState.User.Identity.Name;
+        _isAuthenticated = authenticationState.User.Identity.IsAuthenticated;
+        _userInDb = _toDoContext.Cprs.FirstOrDefault(x => x.User == _currentUser);
+
+        
+        TodoList = _toDoContext.Todolists.ToList().Where(x => x.User == _userInDb).ToList();
+    }
+
+    private void SubmitTask()
+    {
+
+        if (_toDoTask != "")
+        {
+            var todo = new Models.Todolist
+                {
+                    User = _userInDb,
+                    Task = _toDoTask,
+                    UserId = _userInDb.Id
+                };
+
+
+            _toDoContext.Todolists.Add(todo);
+            _toDoContext.SaveChanges();
+
+            TodoList = _toDoContext.Todolists.ToList().Where(x => x.User == _userInDb).ToList();
+            _toDoTask = "";
+        }
+    }
+
+}

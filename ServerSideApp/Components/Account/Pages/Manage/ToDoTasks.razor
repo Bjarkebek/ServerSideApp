@@ -1,4 +1,15 @@
-﻿<h3>ToDoTasks</h3>
+﻿@page "/Account/Manage/ToDo"
+
+
+@* usings *@
+
+@* hvis bruger ikke er authenticated kan siden ikke tilgås *@
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AuthenticatedUser")]
+
+@* injects *@
+
+
+<h3>ToDoTasks</h3>
 
 @code {
 

@@ -8,21 +8,21 @@
 @using ServerSideApp.Data
 @using Models
 
+@* hvis bruger ikke er authenticated kan siden ikke tilgås *@
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AuthenticatedUser")]
+
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityUserAccessor UserAccessor
 @inject Models.ToDoDbContext _toDoContext
-
+@inject Services.HashingService _hashingHandler
 
 
 <PageTitle>CPR</PageTitle>
-<EditForm Model="Input" FormName="set-cpr" OnValidSubmit="OnSubmit" method="post">
+<EditForm Model="Input" FormName="set-cpr" OnValidSubmit="SubmitCpr" method="post">
     <div class="row">
         <h2>Indtast CPR-nummer</h2>
         <div class="form-floating mb-3" style="width:200px">
-            <InputText type="text" placeholder="xxxxxx-xxxx" style="width:200px" 
-            @bind-Value="Input.userCpr"
-            @onchange="@((ChangeEventArgs __e) => Input.userCpr = __e?.Value?.ToString())" />
-            
+            <InputText type="text" placeholder="xxxxxx-xxxx" style="width:200px" @bind-Value="Input.userCpr" />
             <hr />
             <button type="submit" class="w-100 btn btn-lg btn-primary">Submit</button>
         </div>
@@ -30,12 +30,24 @@
 </EditForm>
 
 
+<AuthorizeView>
+    <Authorized>
+        @* sektion kan kun ses hvis bruger er authorized *@
+    </Authorized>
+    <NotAuthorized>
+        @* sektion kan ses selvom bruger ikke er authorized *@
+    </NotAuthorized>
+</AuthorizeView>
+
+
+
+
 
 
 @code {
     private ApplicationUser user = default!;
-    private string? userCpr;
     private string? _currentUser;
+    // private string? _userCpr;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -46,45 +58,30 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // var userId = UserManager.GetUserIdAsync(user);
-
-
         user = await UserAccessor.GetRequiredUserAsync(HttpContext);
         _currentUser = user.ToString();
 
-        // CprNr er null - derfor crasher - skal testes om null før den kører (if null, userCpr = "")
-        // string? tempCpr = _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).CprNr;
 
-        if (_toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser) == null)
-        {
-            Input.userCpr = "";
-        }
-        else
-        {
-            Input.userCpr = _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).CprNr;
-        }
+        // if (_toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser) == null)
+        // {
+        //     Input.userCpr = "";
+        // }
+        // else
+        // {
+        //     Input.userCpr = _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).CprNr;
+        // }
 
         base.OnInitialized();
     }
 
 
 
-    private async Task OnSubmit()
+    private void SubmitCpr()
     {
-        
 
         // if input changed - try send
         if (Input.userCpr != "")
         {
-
-            // if input is unchanged - don't sendt
-
-            // INPUT (Input.userCpr) ÆNDRER SIG IKKE NÅR MAN SKRIVER I INPUT:(
-            if (Input.userCpr == _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).CprNr)
-            {
-                return;
-            }
-
             // opretter cpr objekt gennem model og tilføjer værdier ud fra input
             var cpr = new Models.Cpr
                 {
@@ -92,20 +89,8 @@
                     CprNr = Input.userCpr
                 };
 
-            // tilføjer cpr objekt til database gennem context og gemmer
-
-            // Hvis bruger allerede er oprettet med cpr - kør Cprs.Update
-            if (cpr.User == _toDoContext.Cprs.FirstOrDefault(a => a.User == _currentUser).User.ToString())
-            {
-                _toDoContext.Cprs.Update(cpr);
-                _toDoContext.SaveChanges();
-            }
-            // else
-            // {
-            //     _toDoContext.Cprs.Update(cpr);
-            //     _toDoContext.SaveChanges();
-            // }
-
+            _toDoContext.Cprs.Update(cpr);
+            _toDoContext.SaveChanges();
         }
 
     }
@@ -114,7 +99,7 @@
     private sealed class InputModel
     {
         [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [StringLength(10, ErrorMessage = "Error", MinimumLength = 6)]
         [DataType(DataType.Text)]
         [Display(Name = "Cpr")]
         public string? userCpr { get; set; }

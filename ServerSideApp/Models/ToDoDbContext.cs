@@ -31,8 +31,7 @@ public partial class ToDoDbContext : DbContext
 
             entity.ToTable("Cpr");
 
-            entity.Property(e => e.Id).ValueGeneratedNever();
-            entity.Property(e => e.CprNr).HasMaxLength(200);
+            entity.Property(e => e.CprNr).HasMaxLength(100);
             entity.Property(e => e.User).HasMaxLength(450);
         });
 
@@ -42,7 +41,6 @@ public partial class ToDoDbContext : DbContext
 
             entity.ToTable("todolist");
 
-            entity.Property(e => e.Id).ValueGeneratedNever();
             entity.Property(e => e.Task).HasMaxLength(500);
 
             entity.HasOne(d => d.User).WithMany(p => p.Todolists)

@@ -1,7 +1,97 @@
 ﻿@page "/"
 
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using ServerSideApp.Components.Account
+@using ServerSideApp.Data
+@using Models
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IdentityUserAccessor UserAccessor
+
+@inject AuthenticationStateProvider _authenticationStateProvider;
+@inject NavigationManager _navigationManager;
+
+@inject Models.ToDoDbContext _toDoContext;
+@inject Services.HashingService _hashingHandler;
+
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+@if (_isAuthenticated)
+{
+    <div>
+        <h2>Velkommen @_currentUser</h2>
 
-Welcome to your new app.
+        <h3>Indtast CPR-nummer</h3>
+        <div class="form-floating mb-3" style="width:200px">
+            <input type="text" placeholder="xxxxxx-xxxx" style="width:200px" @bind="_userCpr" maxlength="10"/>
+            <hr />
+            <button type="submit" @onclick="SubmitCpr" class="w-100 btn btn-lg btn-primary">Submit</button>
+        </div>
+
+        @if (_errorMessage != null)
+        {
+            <div>@_errorMessage</div>
+        }
+
+    </div>
+    
+}
+else
+{
+    
+}
+
+
+@code {
+    private string? _userCpr;
+    private string? _currentUser;
+    private string _cprFromDB;
+    private string? _errorMessage;
+    private bool _isAuthenticated;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _errorMessage = null;
+
+        var authenticationState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+        _currentUser = authenticationState.User.Identity.Name;
+        _isAuthenticated = authenticationState.User.Identity.IsAuthenticated;
+    }
+
+    private void SubmitCpr()
+    {
+        var userInDB = _toDoContext.Cprs.FirstOrDefault(x => x.User == _currentUser);
+        // if input changed - try send
+        if (userInDB == null)
+        {
+            // opretter cpr objekt gennem model og tilføjer værdier ud fra input
+            var cpr = new Models.Cpr
+                {
+                    User = _currentUser,
+                    CprNr = _hashingHandler.BcryptHashing(_userCpr, Services.returnType.String)
+                };
+
+            _toDoContext.Cprs.Add(cpr);
+            _toDoContext.SaveChanges();
+            _navigationManager.NavigateTo("/ToDo");
+        }
+        else
+        {
+            bool hashedValueMatch = _hashingHandler.BcryptVerify(_userCpr, userInDB.CprNr);
+            if (hashedValueMatch)
+            {
+                // navigate to ToDoList
+                _navigationManager.NavigateTo("/ToDo");
+            }
+            else
+            {
+                _errorMessage = "Cpr-nr er forkert!";
+            }
+        }
+    }
+}
