@@ -1,7 +1,8 @@
-﻿@page "/ToDo"
+﻿@page "/ToDo/{username}"
 
-@inject AuthenticationStateProvider _authenticationStateProvider;
-@inject Models.ToDoDbContext _toDoContext;
+@inject AuthenticationStateProvider _authenticationStateProvider
+@inject Models.ToDoDbContext _toDoContext
+@inject Services.AsymmetricEncryptionService _encryptHandler
 
 @if (_isAuthenticated)
 {
@@ -12,9 +13,9 @@
         <hr />
         <button type="submit" @onclick="SubmitTask" class="w-100 btn btn-lg btn-primary">Add</button>
     </div>
-
-    <div style="margin-top:px;">
-        @if (TodoList != null && TodoList.Count > 0)
+    <hr />
+    <div>
+        @if (_toDoList != null && _toDoList.Count > 0)
         {
             <table class="table">
                 <thead>
@@ -23,12 +24,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (TodoList != null && TodoList.Count > 0)
+                    @if (_toDoList != null && _toDoList.Count > 0)
                     {
-                        @foreach (var item in TodoList)
+                        @foreach (var item in _toDoList)
                         {
                             <tr>
-                                <td>@item.Task</td>
+                                <td>@_encryptHandler.DecryptData(item.Task.ToString())</td> @* Decrypter todo task og viser i liste*@
+                                <input type="button" value="X" @onclick="() => DeleteTask(item)" style="border:none;" />
                             </tr>
                         }
                     }
@@ -36,52 +38,66 @@
             </table>
         }
     </div>
-
-
-
-
 }
+else
+{
+    <div>
+        <a href="/">Verify cpr</a> to see this page
+    </div>
+}
+
+
+
 
 
 
 @code {
     private bool _isAuthenticated;
-    private bool _cprAuthenticated;
     private string? _currentUser;
     private string? _toDoTask;
-    private List<Models.Todolist>? TodoList = new List<Models.Todolist>();
+    private List<Models.Todolist>? _toDoList = new List<Models.Todolist>();
     private Models.Cpr _userInDb;
+
+    [Parameter]
+    public string username { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         var authenticationState = await _authenticationStateProvider.GetAuthenticationStateAsync();
         _currentUser = authenticationState.User.Identity.Name;
-        _isAuthenticated = authenticationState.User.Identity.IsAuthenticated;
         _userInDb = _toDoContext.Cprs.FirstOrDefault(x => x.User == _currentUser);
 
-        
-        TodoList = _toDoContext.Todolists.ToList().Where(x => x.User == _userInDb).ToList();
+        // tjekker om CPR er verificeret og authenticater user hvis 'true'
+        if (username == _userInDb.CprNr)
+            _isAuthenticated = authenticationState.User.Identity.IsAuthenticated;
+
+        _toDoList = _toDoContext.Todolists.ToList().Where(x => x.User == _userInDb).ToList();
     }
 
     private void SubmitTask()
     {
-
         if (_toDoTask != "")
         {
-            var todo = new Models.Todolist
-                {
-                    User = _userInDb,
-                    Task = _toDoTask,
-                    UserId = _userInDb.Id
-                };
-
+            var todo = new Models.Todolist{
+                User = _userInDb,
+                Task = _encryptHandler.EncryptData(_toDoTask), //indsætter encrypted todo task i todo model
+                UserId = _userInDb.Id
+            };
 
             _toDoContext.Todolists.Add(todo);
             _toDoContext.SaveChanges();
 
-            TodoList = _toDoContext.Todolists.ToList().Where(x => x.User == _userInDb).ToList();
+            _toDoList = _toDoContext.Todolists.ToList().Where(x => x.User == _userInDb).ToList();
             _toDoTask = "";
         }
+    }
+
+    private void DeleteTask(Models.Todolist item)
+    {
+        _toDoContext.Todolists.Remove(item);
+        _toDoContext.SaveChanges();
+
+        _toDoList = _toDoContext.Todolists.ToList().Where(x => x.User == _userInDb).ToList();
     }
 
 }

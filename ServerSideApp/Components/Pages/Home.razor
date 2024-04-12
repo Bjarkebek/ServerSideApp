@@ -12,11 +12,12 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityUserAccessor UserAccessor
 
-@inject AuthenticationStateProvider _authenticationStateProvider;
-@inject NavigationManager _navigationManager;
+@inject AuthenticationStateProvider _authenticationStateProvider
+@inject NavigationManager _navigationManager
 
-@inject Models.ToDoDbContext _toDoContext;
-@inject Services.HashingService _hashingHandler;
+@inject Models.ToDoDbContext _toDoContext
+@inject Services.HashingService _hashingHandler
+@inject Services.SymmetricEncryptionService _symmetricEncryptionService
 
 <PageTitle>Home</PageTitle>
 
@@ -32,24 +33,22 @@
             <button type="submit" @onclick="SubmitCpr" class="w-100 btn btn-lg btn-primary">Submit</button>
         </div>
 
-        @if (_errorMessage != null)
-        {
+        @if (_errorMessage != null){
             <div>@_errorMessage</div>
         }
-
     </div>
-    
 }
 else
 {
-    
+    <div>
+        <a href="/Account/Login">Log in</a> to see this page
+    </div>
 }
 
 
 @code {
     private string? _userCpr;
     private string? _currentUser;
-    private string _cprFromDB;
     private string? _errorMessage;
     private bool _isAuthenticated;
 
@@ -66,15 +65,15 @@ else
     private void SubmitCpr()
     {
         var userInDB = _toDoContext.Cprs.FirstOrDefault(x => x.User == _currentUser);
+        
         // if input changed - try send
         if (userInDB == null)
         {
             // opretter cpr objekt gennem model og tilføjer værdier ud fra input
-            var cpr = new Models.Cpr
-                {
-                    User = _currentUser,
-                    CprNr = _hashingHandler.BcryptHashing(_userCpr, Services.returnType.String)
-                };
+            var cpr = new Models.Cpr{
+                User = _currentUser,
+                CprNr = _hashingHandler.BcryptHashing(_userCpr, Services.returnType.String)
+            };
 
             _toDoContext.Cprs.Add(cpr);
             _toDoContext.SaveChanges();
@@ -85,8 +84,8 @@ else
             bool hashedValueMatch = _hashingHandler.BcryptVerify(_userCpr, userInDB.CprNr);
             if (hashedValueMatch)
             {
-                // navigate to ToDoList
-                _navigationManager.NavigateTo("/ToDo");
+                // navigate til ToDoList med cpr hashed
+                _navigationManager.NavigateTo($"/ToDo/{userInDB.CprNr}");
             }
             else
             {

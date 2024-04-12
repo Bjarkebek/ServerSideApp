@@ -17,6 +17,8 @@ builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 builder.Services.AddSingleton<HashingService>(); // tilføjer hashing service
+builder.Services.AddSingleton<SymmetricEncryptionService>(); // tilføjer symmetrisk enkrypt service
+builder.Services.AddSingleton<AsymmetricEncryptionService>(); // tilføjer asymmetrisk enkrypt service
 
 builder.Services.AddAuthentication(options =>
     {

@@ -54,7 +54,7 @@ public class HashingService
     public string HMACHashing(string txtToHash)
     {
         // opretter nøgle
-        byte[] key = Encoding.ASCII.GetBytes("NØGLE_NØGLE_NØGLE");
+        byte[] key = Encoding.ASCII.GetBytes("KEY_KEY_KEY_KEY");
         
         // laver ny instans af hmac og tilføjer key
         HMACSHA256 hmac = new HMACSHA256();
@@ -70,7 +70,7 @@ public class HashingService
     public string PBKDF2Hashing(string txtToHash)
     {
         // opretter salt, algorytme m.m.
-        byte[] salt = Encoding.ASCII.GetBytes("SALT_SALT_SALT");
+        byte[] salt = Encoding.ASCII.GetBytes("SALT_SALT_SALT_SALT");
         var hashAlgorythm = new HashAlgorithmName("SHA256");
         int itiration = 10;
         int outputLength = 32;
